@@ -1,0 +1,12 @@
+{
+  "data_kind": "synthetic",
+  "source": "local deterministic generator",
+  "generator": "scripts/make_synthetic_sample.py",
+  "seed": 2026,
+  "description": "SYNTHETIC FALLBACK. Ring plus random edges; NOT biological data.",
+  "license": "MIT",
+  "sha256": {
+    "neurons.csv": "3473361d1e270bbc1a24963f968379551a1376909251cc873d7bc52480e69d53",
+    "edges.csv": "7e0aa6b570375e9f5b439282f59ab03cef89c4b6dce2359f9e9f4e60f32e7548"
+  }
+}

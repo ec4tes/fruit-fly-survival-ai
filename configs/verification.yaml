@@ -1,0 +1,8 @@
+# CPU integration check at the intended default graph size; still SYNTHETIC.
+extends: offline.yaml
+output_dir: results/verification
+training:
+  timesteps: 1024
+experiments:
+  train_seeds: [42]
+  eval_seeds: [10001, 10002]

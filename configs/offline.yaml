@@ -1,0 +1,5 @@
+extends: default.yaml
+model:
+  kind: connectome
+  graph_path: data/sample/synthetic
+  allow_synthetic: true

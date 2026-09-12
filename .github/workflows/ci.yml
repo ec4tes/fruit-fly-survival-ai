@@ -1,0 +1,41 @@
+name: tests
+on: [push, pull_request]
+
+jobs:
+  offline-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    env:
+      SDL_VIDEODRIVER: dummy
+      MPLBACKEND: Agg
+      PYGAME_HIDE_SUPPORT_PROMPT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install CPU PyTorch and project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements.txt
+      - run: python -m pip check
+      - run: python -m ruff check src scripts tests
+      - run: python -m ruff format --check src scripts tests
+      - run: python -m pytest -q
+      - run: python scripts/run_demo.py --headless --steps 20 --snapshot results/demo.png
+      - run: python scripts/run_experiments.py --config configs/smoke.yaml
+      - run: python scripts/generate_plots.py --output results/smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            results/smoke/csv/
+            results/smoke/plots/
+            results/demo.png

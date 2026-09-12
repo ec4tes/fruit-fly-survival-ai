@@ -1,0 +1,25 @@
+extends: offline.yaml
+output_dir: results/smoke
+environment:
+  max_steps: 64
+  map_seeds: [11, 22]
+model:
+  subgraph_size: 64
+  input_count: 16
+  output_count: 16
+  dynamics_steps: 3
+  mlp_layers: [32, 32]
+training:
+  timesteps: 128
+  n_steps: 64
+  batch_size: 32
+  n_epochs: 2
+  tensorboard: false
+experiments:
+  train_seeds: [42]
+  eval_seeds: [10001, 10002]
+  unseen_map_seeds: [1011, 1022]
+  noise_levels: [0.0, 0.1]
+  neuron_damage_levels: [0.0, 0.2]
+  edge_damage_levels: [0.0, 0.2]
+  damage_seeds: [70]
