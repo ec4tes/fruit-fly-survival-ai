@@ -26,9 +26,14 @@ class Agent:
             self.heading += (1 if action == 3 else -1) * config["turn_rate"] * dt
         self.heading = float((self.heading + np.pi) % (2 * np.pi) - np.pi)
         self.velocity = config["agent_speed"] if action in (1, 4) else 0.0
+        if action in (2, 3):
+            # Absent in v1 saved configs: retain their turn-in-place semantics.
+            self.velocity = config["agent_speed"] * config.get("turn_speed_fraction", 0.0)
         if action == 4:
             self.velocity *= config["sprint_multiplier"]
         cost_key = {1: "move_energy_cost", 4: "sprint_energy_cost"}.get(action, "idle_energy_cost")
+        if action in (2, 3) and self.velocity > 0:
+            cost_key = "move_energy_cost"
         cost = config[cost_key] * dt
         self.energy = max(0.0, self.energy - cost)
         self.energy_spent += cost

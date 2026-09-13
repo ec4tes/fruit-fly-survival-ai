@@ -3,6 +3,34 @@
 This is a connectome-constrained artificial architecture experiment, not a brain
 simulation. Commit a protocol/configuration before looking at held-out scores.
 
+## Behavioral checks before robustness claims
+
+Inspect intact food collection, distance traveled, stationary-step fraction and
+action counts before interpreting damage/noise curves. The original local 20k-step
+policies did not forage. Surviving while turning in place is not sufficient
+evidence for this research question. The runner emits warnings and an intact-policy
+`learning_health.csv`; it does not silently discard unsuccessful models or seeds.
+
+Training validation uses `training.validation_seeds` on familiar map layouts.
+These development seeds must be disjoint from training and final evaluation seeds.
+For the revised `configs/learning.yaml` protocol, development seeds are 20001–20005,
+final evaluation seeds are 30001–30010, and training seeds are 42/43. Development
+seeds were used while investigating reward/action settings. Final scores must not
+be reused for tuning while still being described as held out.
+
+Both deterministic argmax and stochastic categorical validation are recorded;
+the six main experiments retain deterministic evaluation. Torch action sampling
+is seeded independently per episode and restores the caller's RNG. Idle, constant
+left/right and uniform-random controls use the same development episodes/maps.
+The constant-turn controls are especially relevant when turning includes forward
+motion: simply moving or collecting one food item by chance does not prove learning.
+
+The revised protocol changes motion, energy, reward scales, shaping and exploration
+together. It is a practical configuration investigation, not a controlled ablation
+that identifies which individual change caused an effect. Raw rewards across the
+old and revised protocols are not directly comparable. Both architectures within
+each protocol receive identical environment and optimization settings.
+
 ## Paired comparison
 
 - The same Gymnasium class, 13 observations, five actions, reward function, PPO

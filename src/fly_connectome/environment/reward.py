@@ -4,14 +4,23 @@ import numpy as np
 
 
 def potential(env) -> float:
-    """Food proximity and predator safety potential of the complete state."""
-    distance = min(np.linalg.norm(p - env.agent.position) for p in env.food)
+    """Bounded proximity, safety and optional food-heading potential of the state."""
+    target = min(env.food, key=lambda p: np.linalg.norm(p - env.agent.position))
+    delta = target - env.agent.position
+    distance = np.linalg.norm(delta)
     food = -distance / np.linalg.norm(env.world.size)
+    angle = np.arctan2(delta[1], delta[0]) - env.agent.heading
+    heading = float(np.cos(angle))
     danger_distance = np.linalg.norm(env.predator.position - env.agent.position)
-    radius = env.config["predator_detection_radius"]
+    radius = (
+        env.config["predator_detection_radius"]
+        * env.config["difficulty_scales"][env.config["difficulty"]][1]
+    )
     danger = -max(0.0, 1 - danger_distance / max(radius, 1e-9))
     return float(
-        env.reward_config["food_potential"] * food + env.reward_config["danger_potential"] * danger
+        env.reward_config["food_potential"] * food
+        + env.reward_config["danger_potential"] * danger
+        + env.reward_config.get("heading_potential", 0.0) * heading
     )
 
 

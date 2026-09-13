@@ -28,6 +28,13 @@ def test_ppo_training_roundtrip(tmp_path, kind):
     assert len(metrics) > 0 and "survival_time" in metrics
     run = json.loads((path.parent / "run.json").read_text())
     assert run["actual_timesteps"] == 64 and run["trainable_parameters"] > 0
+    validation = pd.read_csv(path.parent / "validation.csv")
+    assert set(validation.policy_mode) == {"deterministic", "stochastic"}
+    assert set(validation.eval_seed) == set(config["training"]["validation_seeds"])
+    assert set(run["validation_health"]) == {"deterministic", "stochastic"}
+    references = pd.read_csv(path.parent / "reference_validation.csv")
+    assert set(references.reference_policy) == {"idle", "left", "right", "random"}
+    assert references.query("reference_policy == 'idle'").stationary_fraction.eq(1).all()
     model.policy.features_extractor.set_damage(0.2, 5)
     damaged = model.policy.features_extractor
     model.save(tmp_path / "damaged.zip")

@@ -11,6 +11,7 @@ import time
 from copy import deepcopy
 from pathlib import Path
 
+import pandas as pd
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
@@ -25,6 +26,8 @@ from ..models.random_sparse import random_sparse_control
 from ..utils.config import resolve_path, save_config, validate_config
 from ..utils.seeding import resolve_device, seed_everything
 from .callbacks import EpisodeMetricsCallback
+from .diagnostics import ReferencePolicy, learning_health, log_learning_health
+from .evaluation import evaluate
 
 LOGGER = logging.getLogger(__name__)
 
@@ -155,6 +158,45 @@ def train_model(
             log_interval=settings["log_interval"],
         )
         model.save(checkpoint)
+        training_seconds = time.perf_counter() - started
+        validation_health = {}
+        if settings.get("validation_seeds"):
+            frames = []
+            for deterministic in (True, False):
+                frame = evaluate(
+                    model,
+                    config,
+                    settings["validation_seeds"],
+                    map_seeds=config["environment"]["map_seeds"],
+                    deterministic=deterministic,
+                )
+                mode = "deterministic" if deterministic else "stochastic"
+                validation_health[mode] = learning_health(frame)
+                log_learning_health(validation_health[mode], f"{kind}/seed{seed}/{mode}")
+                frames.append(frame)
+            validation = pd.concat(frames, ignore_index=True)
+            validation["model"] = kind
+            validation["train_seed"] = seed
+            validation["data_kind"] = provenance["data_kind"]
+            validation["checkpoint_fingerprint"] = fingerprint
+            validation.to_csv(folder / "validation.csv", index=False)
+            references = []
+            for reference in ("idle", "left", "right", "random"):
+                frame = evaluate(
+                    ReferencePolicy(reference),
+                    config,
+                    settings["validation_seeds"],
+                    map_seeds=config["environment"]["map_seeds"],
+                )
+                frame["reference_policy"] = reference
+                frame["checkpoint_fingerprint"] = fingerprint
+                references.append(frame)
+            pd.concat(references, ignore_index=True).to_csv(
+                folder / "reference_validation.csv", index=False
+            )
+            (folder / "learning_health.json").write_text(
+                json.dumps(validation_health, indent=2), encoding="utf-8"
+            )
         manifest = {
             "fingerprint": fingerprint,
             "source_sha256": code_digest.hexdigest(),
@@ -162,7 +204,8 @@ def train_model(
             "train_seed": seed,
             "requested_timesteps": settings["timesteps"],
             "actual_timesteps": model.num_timesteps,
-            "wall_seconds": time.perf_counter() - started,
+            "wall_seconds": training_seconds,
+            "validation_health": validation_health,
             "provenance": provenance,
             "parameters": sum(p.numel() for p in model.policy.parameters()),
             "trainable_parameters": sum(

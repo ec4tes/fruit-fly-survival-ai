@@ -50,7 +50,8 @@ def parser() -> argparse.ArgumentParser:
         ],
     )
     plots = commands.add_parser("plots", help="Plot existing measured CSVs")
-    plots.add_argument("--output", default="results")
+    plots.add_argument("--config", default="configs/default.yaml")
+    plots.add_argument("--output", help="Default: output_dir from the selected config")
     graph = commands.add_parser("graph", help="Inspect and plot a bounded graph sample")
     graph.add_argument("--path", default="data/sample/synthetic")
     graph.add_argument("--output", default="results/plots/connectome.png")
@@ -58,8 +59,13 @@ def parser() -> argparse.ArgumentParser:
     evaluate = commands.add_parser("evaluate", help="Evaluate a saved checkpoint")
     evaluate.add_argument("checkpoint")
     evaluate.add_argument("--seeds", nargs="+", type=int, default=[10001, 10002, 10003])
-    evaluate.add_argument("--output", default="results/csv/evaluation.csv")
+    evaluate.add_argument("--output", help="Default: evaluation_<mode>.csv beside checkpoint")
     evaluate.add_argument("--noise", type=float, default=0.0)
+    evaluate.add_argument(
+        "--stochastic",
+        action="store_true",
+        help="Sample actions reproducibly instead of taking argmax",
+    )
     return root
 
 
@@ -115,7 +121,8 @@ def main(argv: list[str] | None = None) -> None:
         elif args.command == "plots":
             from .visualization.result_plots import generate_plots
 
-            logger.info("Created %d plots", len(generate_plots(resolve_path(args.output))))
+            output = args.output or load_config(args.config)["output_dir"]
+            logger.info("Created %d plots", len(generate_plots(resolve_path(output))))
         elif args.command == "graph":
             from .connectome.graph import load_connectome
             from .connectome.statistics import graph_statistics
@@ -128,18 +135,31 @@ def main(argv: list[str] | None = None) -> None:
         elif args.command == "evaluate":
             from stable_baselines3 import PPO
 
+            from .training.diagnostics import learning_health, log_learning_health
             from .training.evaluation import evaluate
+            from .utils.seeding import seed_everything
 
             path = resolve_path(args.checkpoint)
             config = load_config(path.parent / "config.yaml")
-            result = evaluate(PPO.load(path, device="cpu"), config, args.seeds, args.noise)
+            seed_everything(config["seed"], config["torch_threads"])
+            result = evaluate(
+                PPO.load(path, device="cpu"),
+                config,
+                args.seeds,
+                args.noise,
+                deterministic=not args.stochastic,
+            )
+            log_learning_health(learning_health(result), str(path.parent.name))
             manifest = json.loads((path.parent / "run.json").read_text(encoding="utf-8"))
             result["model"] = manifest["model"]
             result["train_seed"] = manifest["train_seed"]
             result["data_kind"] = manifest["provenance"]["data_kind"]
             result["checkpoint_fingerprint"] = manifest["fingerprint"]
             result["noise_level"] = args.noise
-            output = resolve_path(args.output)
+            mode = "stochastic" if args.stochastic else "deterministic"
+            output = (
+                resolve_path(args.output) if args.output else path.parent / f"evaluation_{mode}.csv"
+            )
             output.parent.mkdir(parents=True, exist_ok=True)
             result.to_csv(output, index=False)
             logger.info("Evaluation: %s", output)
