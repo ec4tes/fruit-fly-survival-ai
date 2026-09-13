@@ -75,6 +75,15 @@ def test_roundtrip_and_tamper(graph, tmp_path):
         load_connectome(tmp_path)
 
 
+def test_checksum_is_line_ending_independent(graph, tmp_path):
+    """A Git checkout may use CRLF on Windows and LF on Linux."""
+    save_processed_graph(graph, tmp_path)
+    for name in ("neurons.csv", "edges.csv"):
+        path = tmp_path / name
+        path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    assert load_connectome(tmp_path).n == graph.n
+
+
 def test_synthetic_opt_in():
     config = load_config("configs/offline.yaml")
     config["model"]["allow_synthetic"] = False

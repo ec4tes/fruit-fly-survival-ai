@@ -62,11 +62,24 @@ class ConnectomeGraph:
 
 
 def sha256(path: Path) -> str:
-    """Hash a file in bounded memory."""
+    """Hash a dataset file canonically across Windows and POSIX line endings.
+
+    CSV caches are text artifacts, so CRLF and LF represent the same dataset.
+    Normalizing while streaming keeps integrity checks portable without loading
+    large connectome tables into memory.
+    """
     digest = hashlib.sha256()
     with path.open("rb") as stream:
+        pending_cr = False
         for block in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(block)
+            if pending_cr:
+                block = b"\r" + block
+                pending_cr = False
+            if block.endswith(b"\r"):
+                block, pending_cr = block[:-1], True
+            digest.update(block.replace(b"\r\n", b"\n"))
+        if pending_cr:
+            digest.update(b"\r")
     return digest.hexdigest()
 
 

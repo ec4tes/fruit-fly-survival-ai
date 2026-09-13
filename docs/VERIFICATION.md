@@ -5,12 +5,16 @@ software execution, not biological validity or convergence of a learned policy.
 
 ## Follow-up: learning diagnostics, 2026-09-13
 
-On branch `codex/fix-learning-stagnation`, **90 offline tests passed**, including
+On branch `fix/learning-stagnation`, **91 offline tests passed**, including
 moving-turn energy accounting, legacy turn behavior, difficulty-aware shaping,
 discounted potential telescoping, per-episode action counters, validation seed
 separation, stochastic evaluation reproducibility/RNG restoration, and validation
 artifact checks for all four PPO architectures. Ruff lint and formatting passed;
 `pip check` reported no broken requirements.
+
+The sample CSV manifest now hashes canonical LF content, while the streaming
+integrity check normalizes CRLF/LF at read time. A dedicated test covers both
+checkout styles, fixing the Ubuntu-only checksum failures seen in GitHub Actions.
 
 The revised-motion synthetic smoke config `configs/learning_smoke.yaml` completed
 all six experiment paths and generated **14 plots**, including two new behavioral
