@@ -24,6 +24,11 @@ generalization, noise tolerance and resilience to network damage?
 
 This repository provides a runnable experiment, not an answer assumed in advance.
 
+The first local 20k-step runs collapsed to stationary policies with no food
+collection. A completed PPO run therefore does **not** establish learned survival.
+The opt-in revised protocol and behavioral diagnostics are described in
+[learning diagnostics and protocol revision](docs/LEARNING_FIX.md).
+
 ![Actual Pygame heuristic demo](docs/images/demo.png)
 
 *Actual rendered heuristic rollout: blue agent, pink predator, green food. This
@@ -296,6 +301,21 @@ python -m fly_connectome train --config configs/smoke.yaml --model baseline
 
 `configs/default.yaml` contains every environment/reward/model/training/experiment
 setting. Defaults are a modest starting budget, not a claim of sufficient training.
+The original motion/reward defaults are retained for reproducibility. For the
+revised exploratory protocol, run the smaller comparison before the full suite:
+
+```bash
+python scripts/run_experiments.py --config configs/learning.yaml --experiment comparison
+python scripts/generate_plots.py --config configs/learning.yaml
+```
+
+This trains both architectures for 32,768 steps each on two training seeds and
+writes to `results/learning_v2/`, preserving earlier `results/` files. It needs
+the real cached connectome. Use `configs/learning_smoke.yaml` for a short, explicitly
+synthetic check of all six experiment paths. Train just one revised model with
+`python scripts/train_baseline.py --config configs/learning.yaml` or
+`python scripts/train_connectome.py --config configs/learning.yaml`.
+
 Checkpoints and resolved configs are written under
 `results/models/<model>_seed<seed>_<fingerprint>/`. Fingerprints include source code,
 config, graph spec, provenance and key dependency versions. Cached checkpoints
@@ -310,6 +330,20 @@ objects). View metrics with:
 ```bash
 tensorboard --logdir results/models
 ```
+
+With `training.validation_seeds` enabled (the default), training also writes
+`validation.csv`, `reference_validation.csv` and `learning_health.json`. These
+use separate development episodes, both deterministic and sampled PPO actions,
+and idle/constant-turn/random controls. No-food and stationary policies produce
+explicit warnings. `foraging_observed` only means at least one food event was
+measured; compare with controls before claiming learning. Use `validation_seeds: []`
+only to disable these checks explicitly. Old saved configs without this field
+still load. Validation does not select checkpoints or train on its episodes.
+
+To inspect an existing checkpoint, use `fly-ai evaluate path/to/model.zip` and
+optionally `--stochastic`. The CLI writes a separate mode-labeled CSV beside that
+checkpoint unless `--output` is supplied. Sampled actions are seeded per episode;
+evaluation restores the caller's Torch RNG state.
 
 ## Experiments
 
@@ -361,6 +395,11 @@ Episode reward/length, survival seconds, food collected, remaining/spent energy,
 food per energy spent, distance traveled, collisions, capture indicator, encounter
 and escape counts/rate, termination reason and map seed are recorded. Training
 records timesteps/wall time; manifests record parameter counts and actual PPO steps.
+New runs also record each action's count and the fraction of steps with zero
+actual displacement. Experiment CSVs include the policy mode, and
+`csv/learning_health.csv` diagnoses intact policies per architecture/training seed.
+The runner reports collapse but still permits explicitly requested perturbation
+experiments; a flat damage curve from a non-foraging policy is not resilience.
 
 Summary means, SD and SEM treat independent **training seeds** as replicates,
 averaging episodes/lesion samples first. One seed yields no uncertainty band.
@@ -375,6 +414,9 @@ No trained biological results are distributed. Any locally generated smoke files
 are actual short software-check rollouts on a synthetic graph and must not be
 presented as biological evidence or a converged comparison. Training checkpoints,
 large data and generated results are ignored by Git.
+Local measured pilot outcomes, including failed policies, are documented in
+[the learning investigation](docs/LEARNING_FIX.md); they do not establish a
+connectome advantage or convergence.
 
 See [local verification](docs/VERIFICATION.md) for the executed test suite, smoke
 pipeline, 500-node CPU check, exact scope and unverified integrations.
@@ -384,6 +426,8 @@ generalization comparison, sensor-noise curves, neuron/edge-damage curves,
 retention curves and an ablation comparison from saved CSVs. No results are
 fabricated when files are absent. Training curves are trailing 10-episode means,
 not held-out learning curves; uncertainty bands on evaluation plots are seed SEM.
+New logs also produce distance and stationary-fraction training curves. Legacy
+logs missing those fields are supported.
 
 ## Project Structure
 

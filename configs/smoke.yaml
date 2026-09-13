@@ -10,6 +10,7 @@ model:
   dynamics_steps: 3
   mlp_layers: [32, 32]
 training:
+  validation_seeds: [20001]
   timesteps: 128
   n_steps: 64
   batch_size: 32

@@ -3,6 +3,7 @@
 import csv
 import logging
 import time
+from collections import deque
 from pathlib import Path
 
 from stable_baselines3.common.callbacks import BaseCallback
@@ -21,6 +22,8 @@ METRICS = [
     "distance_travelled",
     "termination_reason",
     "map_seed",
+    "stationary_fraction",
+    *[f"action_{i}_count" for i in range(5)],
 ]
 
 
@@ -30,6 +33,7 @@ class EpisodeMetricsCallback(BaseCallback):
     def __init__(self, path: Path, model_kind: str, seed: int):
         super().__init__()
         self.path, self.model_kind, self.seed = path, model_kind, seed
+        self.recent_episodes = deque(maxlen=20)
 
     def _on_training_start(self) -> None:
         self.started = time.perf_counter()
@@ -63,6 +67,7 @@ class EpisodeMetricsCallback(BaseCallback):
                 **{key: info[key] for key in METRICS},
             }
             self.writer.writerow(row)
+            self.recent_episodes.append(row)
             self.stream.flush()
             for key in METRICS:
                 if isinstance(info[key], (int, float)):
@@ -70,8 +75,14 @@ class EpisodeMetricsCallback(BaseCallback):
         return True
 
     def _on_rollout_end(self) -> None:
+        behavior = "no completed episode yet"
+        if self.recent_episodes:
+            count = len(self.recent_episodes)
+            food = sum(row["food_collected"] for row in self.recent_episodes) / count
+            distance = sum(row["distance_travelled"] for row in self.recent_episodes) / count
+            behavior = f"last {count} episodes: food={food:.2f}, distance={distance:.1f}"
         logging.getLogger(__name__).info(
-            "%s seed=%d steps=%d", self.model_kind, self.seed, self.num_timesteps
+            "%s seed=%d steps=%d; %s", self.model_kind, self.seed, self.num_timesteps, behavior
         )
 
     def _on_training_end(self) -> None:

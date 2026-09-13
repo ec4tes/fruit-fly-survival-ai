@@ -63,13 +63,19 @@ def generate_plots(output: Path) -> list[Path]:
         episode_files = [Path(path).parent / "episodes.csv" for path in checkpoints]
     else:
         episode_files = list((output / "models").glob("*/episodes.csv"))
-    for metric in ("episode_reward", "survival_time", "food_collected"):
+    for metric in (
+        "episode_reward",
+        "survival_time",
+        "food_collected",
+        "distance_travelled",
+        "stationary_fraction",
+    ):
         fig, ax = plt.subplots(figsize=(9, 4.5), layout="constrained")
         plotted = False
         synthetic_training = False
         for path in episode_files:
             data = pd.read_csv(path)
-            if data.empty:
+            if data.empty or metric not in data:
                 continue
             plotted = True
             run_manifest = path.parent / "run.json"

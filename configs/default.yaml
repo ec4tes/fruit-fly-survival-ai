@@ -69,6 +69,7 @@ model:
   train_edge_weights: true
   recurrent_gain: 0.8
 training:
+  validation_seeds: [20001, 20002, 20003, 20004, 20005]
   timesteps: 20000
   n_envs: 1
   n_steps: 256

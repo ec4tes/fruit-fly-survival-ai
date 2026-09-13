@@ -3,6 +3,39 @@
 Verified on **2026-09-12**, Windows, Python **3.12.13**, CPU. These checks establish
 software execution, not biological validity or convergence of a learned policy.
 
+## Follow-up: learning diagnostics, 2026-09-13
+
+On branch `fix/learning-stagnation`, **91 offline tests passed**, including
+moving-turn energy accounting, legacy turn behavior, difficulty-aware shaping,
+discounted potential telescoping, per-episode action counters, validation seed
+separation, stochastic evaluation reproducibility/RNG restoration, and validation
+artifact checks for all four PPO architectures. Ruff lint and formatting passed;
+`pip check` reported no broken requirements.
+
+The sample CSV manifest now hashes canonical LF content, while the streaming
+integrity check normalizes CRLF/LF at read time. A dedicated test covers both
+checkout styles, fixing the Ubuntu-only checksum failures seen in GitHub Actions.
+
+The revised-motion synthetic smoke config `configs/learning_smoke.yaml` completed
+all six experiment paths and generated **14 plots**, including two new behavioral
+training curves. The neuron-damage figure was visually inspected. A headless
+100-step Pygame demo using `configs/learning.yaml` rendered a valid frame, which
+was also inspected. These checks do not establish learning; explicit no-foraging
+warnings in short smoke runs are expected.
+
+The original seed-42 baseline and connectome checkpoints were loaded with their
+saved configurations and re-evaluated on the original paired seeds/maps. Episode
+reward, food, distance and survival reproduced the recorded CSV values to a
+1e-8 tolerance. The stochastic `fly-ai evaluate` CLI and a 100-step trained-baseline
+checkpoint demo also completed. The publishable-file audit found no file over
+1 MiB; real datasets and generated results remained excluded.
+
+See [the learning investigation](LEARNING_FIX.md) for measured real-data pilot
+outcomes, preserved old results, the revised protocol and its limitations.
+The revised real-data comparison subsequently completed four 32,768-step runs
+(baseline/connectome, seeds 42/43) and 40 final evaluation episodes. This supersedes
+the earlier short-run-only scope below; it still does not establish convergence.
+
 ## Follow-up: authenticated real-data integration
 
 Later on the same date, a user-supplied token enabled actual authenticated access

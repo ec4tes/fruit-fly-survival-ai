@@ -1,0 +1,8 @@
+# Revised exploratory protocol. Original defaults/checkpoints retain their physics.
+extends: learning_pilot_heading.yaml
+output_dir: results/learning_v2
+training:
+  validation_seeds: [20001, 20002, 20003, 20004, 20005]
+experiments:
+  train_seeds: [42, 43]
+  eval_seeds: [30001, 30002, 30003, 30004, 30005, 30006, 30007, 30008, 30009, 30010]

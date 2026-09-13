@@ -1,0 +1,6 @@
+extends: learning_pilot.yaml
+output_dir: results/learning_pilot_heading
+reward:
+  heading_potential: 2.0
+training:
+  timesteps: 32768

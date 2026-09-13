@@ -59,6 +59,8 @@ class FruitFlySurvivalEnv(gym.Env):
         )
         self.food = [self._spawn_food() for _ in range(self.config["food_count"])]
         self.collision_count = 0
+        self.action_counts = np.zeros(5, dtype=np.int64)
+        self.stationary_steps = 0
         self.encounters = 0
         self.escapes = 0
         self._in_danger = False
@@ -83,6 +85,7 @@ class FruitFlySurvivalEnv(gym.Env):
         if self._done:
             raise RuntimeError("Call reset before step, including after episode end")
         cfg, agent = self.config, self.agent
+        self.action_counts[int(action)] += 1
         old_potential = potential(self)
         displacement = agent.act(int(action), cfg)
         pred_displacement = self.predator.displacement(agent.position, self.world, self.np_random)
@@ -121,6 +124,7 @@ class FruitFlySurvivalEnv(gym.Env):
                 captured = True
                 break
         travelled = float(np.linalg.norm(agent.position - start))
+        self.stationary_steps += int(travelled < 1e-8)
         agent.distance_travelled += travelled
         agent.velocity = travelled / cfg["dt"]
         agent.food_collected += len(eaten)
@@ -175,6 +179,8 @@ class FruitFlySurvivalEnv(gym.Env):
             "predator_capture": int(reason == "capture"),
             "termination_reason": reason,
             "map_seed": self.map_seed,
+            "stationary_fraction": self.stationary_steps / max(agent.age, 1),
+            **{f"action_{i}_count": int(count) for i, count in enumerate(self.action_counts)},
         }
 
     def render(self):

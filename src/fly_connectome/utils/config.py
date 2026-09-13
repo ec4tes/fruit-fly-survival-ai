@@ -96,6 +96,8 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("Predator speed must be nonnegative and sensing radius positive")
     if env["sprint_multiplier"] < 1 or env["turn_rate"] <= 0:
         raise ValueError("Sprint multiplier must be >= 1 and turn_rate positive")
+    if not 0 <= env.get("turn_speed_fraction", 0.0) <= 1:
+        raise ValueError("turn_speed_fraction must be in [0, 1]")
     if not env["predator_steering_angles"]:
         raise ValueError("Predator needs at least one steering angle")
     if (
@@ -130,6 +132,16 @@ def validate_config(config: dict[str, Any]) -> None:
     if config["reward"]["gamma"] != train["gamma"]:
         raise ValueError("Potential shaping gamma must match PPO gamma")
     exp = config["experiments"]
+    validation_seeds = train.get("validation_seeds", [])
+    if set(validation_seeds) & (
+        set(exp["eval_seeds"]) | set(exp["train_seeds"]) | {config["seed"]}
+    ):
+        raise ValueError("Development validation seeds must be disjoint from train/eval seeds")
+    if validation_seeds and (
+        len(validation_seeds) != len(set(validation_seeds))
+        or any(not isinstance(s, int) or not 0 <= s < 2**32 for s in validation_seeds)
+    ):
+        raise ValueError("Validation seeds must be unique uint32 integers")
     for seeds in (
         exp["train_seeds"],
         exp["eval_seeds"],

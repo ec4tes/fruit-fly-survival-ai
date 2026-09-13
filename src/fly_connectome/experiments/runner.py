@@ -14,6 +14,7 @@ import pandas as pd
 import yaml
 from stable_baselines3 import PPO
 
+from ..training.diagnostics import learning_health, log_learning_health
 from ..training.evaluation import evaluate
 from ..training.train import train_model
 from ..utils.config import resolve_path, save_config
@@ -91,6 +92,7 @@ def summarize(frame: pd.DataFrame) -> pd.DataFrame:
         "collision_count",
     ]
     metrics += [key for key in frame if key.endswith("retention_pct") or key.endswith("_change")]
+    metrics += [key for key in ("distance_travelled", "stationary_fraction") if key in frame]
     by_seed = frame.groupby([*keys, "train_seed"], dropna=False)[metrics].mean()
     summary = by_seed.groupby(keys, dropna=False).agg(["mean", "std", "sem", "count"])
     summary.columns = ["_".join(column) for column in summary.columns]
@@ -132,6 +134,7 @@ def run_experiments(config: dict, experiment: str = "all") -> Path:
             checkpoints[(kind, seed)] = train_model(
                 config, kind, seed, settings["reuse_checkpoints"]
             )
+    health_rows = []
     for name in names:
         frames = []
         selected_kinds = kinds if name == "ablation" else ("baseline", "connectome")
@@ -190,10 +193,25 @@ def run_experiments(config: dict, experiment: str = "all") -> Path:
                     )
                 extractor.clear_damage()
         combined = pd.concat(frames, ignore_index=True)
+        # Diagnose intact policies only; damaged failures are the measured outcome.
+        intact = combined[
+            (combined.level == 0)
+            & combined.condition.isin(
+                ["in_distribution", "sensor_noise", "neuron_damage", "edge_damage"]
+            )
+        ]
+        for (kind, seed), episodes in intact.groupby(["model", "train_seed"]):
+            episodes = episodes.drop_duplicates(subset=["eval_seed"])
+            health = learning_health(episodes)
+            log_learning_health(health, f"{name}/{kind}/seed{seed}/intact")
+            health_rows.append(
+                {"experiment": name, "model": kind, "train_seed": int(seed), **health}
+            )
         if name in ("sensor_noise", "neuron_damage", "edge_damage"):
             combined = add_retention(combined)
         combined.to_csv(csv_dir / f"{name}.csv", index=False)
         summarize(combined).to_csv(csv_dir / f"{name}_summary.csv", index=False)
+        pd.DataFrame(health_rows).to_csv(csv_dir / "learning_health.csv", index=False)
     manifest = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "experiments": list(names),
